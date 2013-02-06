@@ -4,14 +4,10 @@ var LC3 = {
     0x3001: 0x1111,
     0x3002: 0x2222
   },
-  PC: 0,
-  Registers: [0,0,0,0,0,0,0,0],
-  PSR:0,
-  IR:0,
-  Conditions:{N:0,
-              Z:0,
-              P:0,
-              Priv:0},
+  PC: 0x0000,
+  Registers: [0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000],
+  PSR:0x0000,
+  IR:0x0000,
   Breakpoints: [],
   run: function(PC,Breakpoints){
 
@@ -94,11 +90,109 @@ var LC3 = {
       this.Registers[DR] = SR1 + this.SEXT(this.IR,5);
     }else{
       var SR2 = (this.IR & 0x0007);
-      this.Registers[DR] = SR1 + SR2;
+      this.Registers[DR] = this.Registers[SR1] + this.Registers[SR2];
+    }
+    this.setcc(this.SEXT(this.Registers[DR],16));
+  },
+
+  LD: function(){
+    var DR = (this.IR & 0x0F00) >> 9;
+    var offset = this.SEXT(this.IR,9);
+    this.Registers[DR] = this.RAM[this.PC + offset];
+    this.setcc(this.SEXT(this.Registers[DR],16));
+  },
+
+  ST: function(){
+    var SR = (this.IR & 0x0F00) >> 9;
+    var offset = this.SEXT(this.IR,9);
+    this.RAM[this.PC + offset] = this.Registers[SR];
+  },
+
+  JSR: function(){
+    this.Registers[7] = this.PC;
+    if((this.IR & 0x0800)){
+      this.PC += this.SEXT(this.IR,11);
+    }else{
+      this.PC = (this.IR & 0x01C0) >> 6;
     }
   },
 
+  AND: function(){
+    var DR = (this.IR & 0x0F00) >> 9;
+    var SR1 = (this.IR & 0x0700) >> 6;
+    if((this.IR & 0x0020)){
+      this.Registers[DR] = this.Registers[SR1] & this.SEXT(this.IR,5);
+    }else{
+      var SR2 = (this.IR & 0x0007);
+      this.Registers[DR] = this.Registers[SR1] & this.Registers[SR2];
+    }
+    this.setcc(this.SEXT(this.Registers[DR],16));
+  },
 
+  LDR: function(){
+    var DR = (this.IR & 0x0F00) >> 9;
+    var BaseR = (this.IR & 0x01C0) >> 6;
+    var offset = this.SEXT(this.IR,6);
+    this.Registers[DR] = this.RAM[this.Registers[BaseR] + offset];
+    this.setcc(this.SEXT(this.Registers[DR],16));
+  },
+
+  STR: function(){
+    var SR = (this.IR & 0x0F00) >> 9;
+    var BaseR = (this.IR & 0x01C0) >> 6;
+    var offset = this.SEXT(this.IR,6);
+    this.RAM[this.Registers[BaseR] + offset] = this.Registers[SR];
+  },
+
+  RTI: function(){
+    //Todo supervisor mode function
+  },
+
+  NOT: function(){
+    var DR = (this.IR & 0x0F00) >> 9;
+    var SR = (this.IR & 0x0700) >> 6;
+    this.Registers[DR] = ~this.Registers[SR];
+    this.setcc(this.SEXT(this.Registers[DR],16));
+  },
+
+  LDI: function(){
+    var DR = (this.IR & 0x0F00) >> 9;
+    var offset = this.SEXT(this.IR,9);
+    this.Registers[DR] = this.RAM[this.RAM[this.PC + offset]];
+    this.setcc(this.SEXT(this.Registers[DR],16));
+  },
+
+  STI: function(){
+    var SR = (this.IR & 0x0F00) >> 9;
+    var offset = this.SEXT(this.IR,9);
+    this.RAM[this.RAM[this.PC + offset]] = this.Registers[SR];
+  },
+
+  RET: function(){
+    this.PC = this.Registers[7];
+  },
+
+  LEA: function(){
+    var DR = (this.IR & 0x0F00) >> 9;
+    var offset = this.SEXT(this.IR,9);
+    this.Registers[DR] = this.PC + offset;
+    this.setcc(this.SEXT(this.Registers[DR],16));
+  },
+
+  TRAP: function(){
+    this.Registers[7] = this.PC;
+    this.PC = this.RAM[this.IR & 0x00FF];
+  },
+
+  setcc: function(value){
+    if(value < 0){
+      this.PSR = (this.PSR & 0xFFF0) + 0x0004;
+    }else if(value > 0){
+      this.PSR = (this.PSR & 0xFFF0) + 0x0001;
+    }else{
+      this.PSR = (this.PSR & 0xFFF0) + 0x0002;
+    }
+  },
 
   SEXT: function(bin,length){
     var temp = bin & (Math.pow(2,length) - 1);
