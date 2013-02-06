@@ -1,20 +1,27 @@
 var LC3 = {
-  RAM: {
-    0x3000: 0x0123,
-    0x3001: 0x1111,
-    0x3002: 0x2222
-  },
+  RAM: {},
   PC: 0x0000,
   Registers: [0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000],
   PSR:0x0000,
   IR:0x0000,
-  Breakpoints: [],
-  run: function(PC,Breakpoints){
+  Breakpoints: {},
+
+  init: function(){
+    this.RAM = {};
+    this.PC = 0x0000;
+    this.Registers = [0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000];
+    this.PSR = 0x0000;
+    this.IR = 0x0000;
+    this.Breakpoints = [];
+  },
+
+  run: function(PC,Breakpoints,RAM){
 
     this.PC = PC;
     this.Breakpoints = Breakpoints;
+    this.RAM = RAM;
 
-    while(this.Breakpoints[this.PC] == null && this.PC < 0x4000){
+    while(this.Breakpoints[this.PC] === undefined && this.PC < 0xFFFF){
       this.IR = this.RAM[this.PC];
       this.PC++;
       this.execute();
